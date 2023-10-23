@@ -85,7 +85,7 @@ type SocketMessage struct {
 	Port           int               `json:"port"`
 }
 
-const NetplayAPIVersion = MPN-1
+const NetplayAPIVersion = "MPN-1"
 
 func (s *LobbyServer) sendData(ws *websocket.Conn, message SocketMessage) error {
 	// s.Logger.Info("sending message", "message", message, "address", ws.Request().RemoteAddr)
