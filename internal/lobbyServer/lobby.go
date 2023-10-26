@@ -81,7 +81,7 @@ type SocketMessage struct {
 	Auth           string            `json:"auth,omitempty"`
 	PlayerNames    []string          `json:"player_names,omitempty"`
 	Accept         int               `json:"accept"`
-	NetplayVersion int               `json:"netplay_version,omitempty"`
+	NetplayVersion string            `json:"netplay_version,omitempty"`
 	Port           int               `json:"port"`
 }
 
