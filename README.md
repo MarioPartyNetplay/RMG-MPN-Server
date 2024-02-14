@@ -1,14 +1,14 @@
-# simple64-netplay-server
+# mpn-server
 
 ## Container
 
 ```
-podman pull quay.io/simple64/simple64-netplay-server:latest
+podman pull quay.io/simple64/mpn-server:latest
 ```
 
 ## Running
 ```
-./simple64-netplay-server --name "Server Name"
+./mpn-server --name "Server Name"
 ```
 ## Running with Podman
 ```
@@ -22,7 +22,7 @@ spec:
   hostNetwork: true
   containers:
     - name: netplay_container
-      image: quay.io/simple64/simple64-netplay-server:latest
+      image: quay.io/simple64/mpn-server:latest
       args:
         - "--name"
         - "My Server"

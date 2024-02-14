@@ -1,4 +1,4 @@
-module github.com/simple64/simple64-netplay-server
+module github.com/simple64/mpn-server
 
 go 1.20
 

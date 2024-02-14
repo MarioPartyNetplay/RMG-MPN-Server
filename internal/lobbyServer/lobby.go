@@ -18,7 +18,7 @@ import (
 
 	"github.com/go-logr/logr"
 	retryablehttp "github.com/hashicorp/go-retryablehttp"
-	gameserver "github.com/simple64/simple64-netplay-server/internal/gameServer"
+	gameserver "github.com/simple64/mpn-server/internal/gameServer"
 	"golang.org/x/net/websocket"
 )
 

@@ -7,14 +7,13 @@ import (
 	"os"
 
 	"github.com/go-logr/zapr"
-	lobbyserver "github.com/simple64/simple64-netplay-server/internal/lobbyServer"
+	lobbyserver "github.com/simple64/mpn-server/internal/lobbyServer"
 	"go.uber.org/zap"
 )
 
 const (
 	DefaultBasePort    = 45000
-	DefaultMOTDMessage = "Please consider <a href=\"https://www.patreon.com/loganmc10\">subscribing to the Patreon</a> or " +
-		"<a href=\"https://github.com/sponsors/loganmc10\">supporting this project on GitHub.</a> Your support is needed in order to keep the netplay service online."
+	DefaultMOTDMessage = "MPN Beta"
 )
 
 func newZap(logPath string) (*zap.Logger, error) {
@@ -27,7 +26,7 @@ func newZap(logPath string) (*zap.Logger, error) {
 }
 
 func main() {
-	name := flag.String("name", "local-server", "Server name")
+	name := flag.String("name", "Localhost", "Server name")
 	basePort := flag.Int("baseport", DefaultBasePort, "Base port")
 	disableBroadcast := flag.Bool("disable-broadcast", false, "Disable LAN broadcast")
 	logPath := flag.String("log-path", "", "Write logs to this file")
