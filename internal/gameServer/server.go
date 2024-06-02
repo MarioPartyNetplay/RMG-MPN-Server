@@ -45,6 +45,7 @@ type GameServer struct {
 	HasSettings        bool
 	Running            bool
 	Features           map[string]string
+	Buffer             int
 }
 
 func (g *GameServer) CreateNetworkServers(basePort int, maxGames int, roomName string, gameName string, logger logr.Logger) int {
@@ -83,28 +84,6 @@ func (g *GameServer) isConnClosed(err error) bool {
 	return strings.Contains(err.Error(), "use of closed network connection")
 }
 
-func (g *GameServer) ManageBuffer() {
-	for {
-		if !g.Running {
-			g.Logger.Info("done managing buffers")
-			return
-		}
-		// Adjust the buffer size for the lead player(s)
-		for i := 0; i < 4; i++ {
-			if g.GameData.BufferHealth[i] != -1 && g.GameData.CountLag[i] == 0 {
-				if g.GameData.BufferHealth[i] > BufferTarget && g.GameData.BufferSize[i] > 0 {
-					g.GameData.BufferSize[i]--
-					// g.Logger.Info("reducing buffer size", "player", i, "bufferSize", g.GameData.BufferSize[i])
-				} else if g.GameData.BufferHealth[i] < BufferTarget {
-					g.GameData.BufferSize[i]++
-					// g.Logger.Info("increasing buffer size", "player", i, "bufferSize", g.GameData.BufferSize[i])
-				}
-			}
-		}
-		time.Sleep(time.Second * 5) //nolint:gomnd
-	}
-}
-
 func (g *GameServer) ManagePlayers() {
 	time.Sleep(time.Second * DisconnectTimeoutS)
 	for {
@@ -139,4 +118,12 @@ func (g *GameServer) ManagePlayers() {
 		}
 		time.Sleep(time.Second * DisconnectTimeoutS)
 	}
+}
+
+func (g *GameServer) ChangeBuffer(buffer int) {
+    g.Buffer = buffer
+	weightedBuffer := uint32(buffer * 4)
+	for i := range g.GameData.BufferSize {
+        g.GameData.BufferSize[i] = weightedBuffer
+    }
 }
