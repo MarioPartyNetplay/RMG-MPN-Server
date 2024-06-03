@@ -89,6 +89,33 @@ type SocketMessage struct {
 
 const NetplayAPIVersion = "MPN-1"
 
+func (sm *SocketMessage) UnmarshalJSON(data []byte) error {
+    var raw map[string]interface{}
+    if err := json.Unmarshal(data, &raw); err != nil {
+        return err
+    }
+
+    if features, ok := raw["features"].(map[string]interface{}); ok {
+        sm.Features = make(map[string]string)
+        for k, v := range features {
+            sm.Features[k] = fmt.Sprintf("%v", v)
+        }
+    }
+
+    // Unmarshal other fields
+    type Alias SocketMessage
+    aux := &struct {
+        *Alias
+    }{
+        Alias: (*Alias)(sm),
+    }
+    if err := json.Unmarshal(data, &aux); err != nil {
+        return err
+    }
+
+    return nil
+}
+
 func (s *LobbyServer) sendData(ws *websocket.Conn, message SocketMessage) error {
 	// s.Logger.Info("sending message", "message", message, "address", ws.Request().RemoteAddr)
 	err := websocket.JSON.Send(ws, message)
@@ -226,37 +253,34 @@ func (s *LobbyServer) wsHandler(ws *websocket.Conn) {
 	defer ws.Close()
 
 	for {
-		var receivedMessage SocketMessage
-		err := websocket.JSON.Receive(ws, &receivedMessage)
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				for i, v := range s.GameServers {
-					if !v.Running {
-						for k, w := range v.Players {
-							if w.Socket == ws {
-								s.Logger.Info("Player has left lobby", "player", k, "room", i, "address", ws.Request().RemoteAddr)
+        var rawMessage map[string]interface{}
+        err := websocket.JSON.Receive(ws, &rawMessage)
+        if err != nil {
+            if errors.Is(err, io.EOF) {
+                // Handle EOF
+                return
+            }
+            s.Logger.Info("could not read WS message", "reason", err.Error(), "address", ws.Request().RemoteAddr)
+            continue
+        }
 
-								v.PlayersMutex.Lock()
-								delete(v.Players, k)
-								v.PlayersMutex.Unlock()
+        // Marshal the map back to JSON
+        jsonData, err := json.Marshal(rawMessage)
+        if err != nil {
+            s.Logger.Error(err, "could not marshal raw message")
+            continue
+        }
 
-								s.updatePlayers(v)
-							}
-						}
-						if len(v.Players) == 0 {
-							s.Logger.Info("No more players in lobby, deleting", "room", i)
-							v.CloseServers()
-							delete(s.GameServers, i)
-						}
-					}
-				}
-				return
-			}
-			s.Logger.Info("could not read WS message", "reason", err.Error(), "address", ws.Request().RemoteAddr)
-			continue
-		}
+        // Unmarshal the JSON into the SocketMessage struct using the custom unmarshal method
+        var receivedMessage SocketMessage
+        err = json.Unmarshal(jsonData, &receivedMessage)
+        if err != nil {
+            s.Logger.Error(err, "could not unmarshal into SocketMessage")
+            continue
+        }
 
-		var sendMessage SocketMessage
+        // Process the receivedMessage as usual
+        var sendMessage SocketMessage
 
 		switch receivedMessage.Type {
 		case TypeRequestCreateRoom:
@@ -354,36 +378,39 @@ func (s *LobbyServer) wsHandler(ws *websocket.Conn) {
 				}
 			}
 
-        case TypeRequestChangeBuffer:
-            if !authenticated {
-                s.Logger.Error(fmt.Errorf("bad auth"), "User tried to change buffer without being authenticated", "address", ws.Request().RemoteAddr)
-                continue
-            }
-            roomName, g := s.findGameServer(receivedMessage.Port)
-            if g != nil {
-                bufferValue := receivedMessage.Features["buffer"]
-                bufferInt, err := strconv.Atoi(bufferValue)
-                if err != nil {
-                    s.Logger.Error(err, "invalid buffer value", "value", bufferValue)
-                    sendMessage.Type = TypeReplyChangeBuffer
-                    sendMessage.Message = "Invalid buffer value"
-                    if err := s.sendData(ws, sendMessage); err != nil {
-                        s.Logger.Error(err, "failed to send message", "message", sendMessage, "address", ws.Request().RemoteAddr)
-                    }
-                    continue
-                }
-                g.ChangeBuffer(bufferInt)
-                s.Logger.Info("buffer changed", "room", roomName, "buffer", bufferInt)
-
-                sendMessage.Type = TypeReplyChangeBuffer
-                sendMessage.Message = "Buffer changed successfully"
-                sendMessage.Features = map[string]string{"buffer": strconv.Itoa(bufferInt)}
-                if err := s.sendData(ws, sendMessage); err != nil {
-                    s.Logger.Error(err, "failed to send message", "message", sendMessage, "address", ws.Request().RemoteAddr)
-                }
-            } else {
-                s.Logger.Error(fmt.Errorf("could not find game server"), "server not found", "message", receivedMessage, "address", ws.Request().RemoteAddr)
-            }
+		case TypeRequestChangeBuffer:
+			if !authenticated {
+				s.Logger.Error(fmt.Errorf("bad auth"), "User tried to change buffer without being authenticated", "address", ws.Request().RemoteAddr)
+				continue
+			}
+			roomName, g := s.findGameServer(receivedMessage.Port)
+			if g != nil {
+				bufferValue := receivedMessage.Features["buffer"]
+				bufferInt, err := strconv.Atoi(bufferValue)
+				if err != nil {
+					s.Logger.Error(err, "invalid buffer value", "value", bufferValue)
+					sendMessage.Type = TypeReplyChangeBuffer
+					sendMessage.Message = "Invalid buffer value"
+					if err := s.sendData(ws, sendMessage); err != nil {
+						s.Logger.Error(err, "failed to send message", "message", sendMessage, "address", ws.Request().RemoteAddr)
+					}
+					continue
+				}
+				g.ChangeBuffer(bufferInt)
+				s.Logger.Info("buffer changed", "room", roomName, "buffer", bufferInt)
+		
+				// Broadcast buffer change to all players
+				sendMessage.Type = TypeReplyChangeBuffer
+				sendMessage.Message = "Buffer changed successfully"
+				sendMessage.Features = map[string]string{"buffer": strconv.Itoa(bufferInt)}
+				for _, player := range g.Players {
+					if err := s.sendData(player.Socket, sendMessage); err != nil {
+						s.Logger.Error(err, "failed to send message", "message", sendMessage, "address", player.Socket.Request().RemoteAddr)
+					}
+				}
+			} else {
+				s.Logger.Error(fmt.Errorf("could not find game server"), "server not found", "message", receivedMessage, "address", ws.Request().RemoteAddr)
+			}
 
 		case TypeRequestJoinRoom:
 			if !authenticated {
