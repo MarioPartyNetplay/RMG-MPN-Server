@@ -121,9 +121,9 @@ func (g *GameServer) ManagePlayers() {
 }
 
 func (g *GameServer) ChangeBuffer(buffer int) {
-    g.Buffer = buffer
-	weightedBuffer := uint32(buffer * 4)
+	g.Buffer = buffer
+	weightedBuffer := uint32(buffer)
 	for i := range g.GameData.BufferSize {
-        g.GameData.BufferSize[i] = weightedBuffer
-    }
+		g.GameData.BufferSize[i] = weightedBuffer
+	}
 }
