@@ -35,6 +35,7 @@ const (
 	RequestRegisterPlayer   = 5
 	RequestGetRegistration  = 6
 	RequestDisconnectNotice = 7
+	ReplyGameBufferTarget   = 8
 	RequestSendCustomStart  = 64 // 64-127 are custom data send slots, 128-191 are custom data receive slots
 	CustomDataOffset        = 64
 )
@@ -285,6 +286,17 @@ func (g *GameServer) processTCP(conn *net.TCPConn) {
 			tcpData.Request = RequestNone
 		}
 
+		if tcpData.Request == ReplyGameBufferTarget {
+			bufferTarget := g.getBufferTarget()
+			bufferTargetBytes := make([]byte, 4)
+			binary.BigEndian.PutUint32(bufferTargetBytes, uint32(bufferTarget))
+			_, err := conn.Write(bufferTargetBytes)
+			if err != nil {
+				g.Logger.Error(err, "could not write buffer target", "address", conn.RemoteAddr().String())
+			}
+			tcpData.Request = RequestNone
+		}
+
 		if tcpData.Request == RequestDisconnectNotice && tcpData.Buffer.Len() >= 4 { // disconnect notice
 			regIDBytes := make([]byte, 4) //nolint:gomnd
 			_, err = tcpData.Buffer.Read(regIDBytes)
@@ -392,4 +404,8 @@ func (g *GameServer) createTCPServer(basePort int, maxGames int) int {
 		}
 	}
 	return 0
+}
+
+func (g *GameServer) getBufferTarget() int {
+	return g.Buffer
 }
