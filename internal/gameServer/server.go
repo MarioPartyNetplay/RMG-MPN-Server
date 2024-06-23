@@ -45,11 +45,12 @@ type GameServer struct {
 	HasSettings        bool
 	Running            bool
 	Features           map[string]string
+	PlayerName         string
 	Buffer             int
 }
 
-func (g *GameServer) CreateNetworkServers(basePort int, maxGames int, roomName string, gameName string, logger logr.Logger) int {
-	g.Logger = logger.WithValues("game", gameName, "room", roomName)
+func (g *GameServer) CreateNetworkServers(basePort int, maxGames int, roomName string, gameName string, playerName string, logger logr.Logger) int {
+	g.Logger = logger.WithValues("game", gameName, "room", roomName, "player", playerName)
 	port := g.createTCPServer(basePort, maxGames)
 	if port == 0 {
 		return port

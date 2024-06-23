@@ -38,22 +38,22 @@ const (
 const (
 	TypeRequestChangeBuffer = "request_change_buffer"
 	TypeReplyChangeBuffer   = "reply_change_buffer"
-	TypeRequestPlayers     = "request_players"
-	TypeReplyPlayers       = "reply_players"
-	TypeRequestGetRooms    = "request_get_rooms"
-	TypeReplyGetRooms      = "reply_get_rooms"
-	TypeRequestCreateRoom  = "request_create_room"
-	TypeReplyCreateRoom    = "reply_create_room"
-	TypeRequestJoinRoom    = "request_join_room"
-	TypeReplyJoinRoom      = "reply_join_room"
-	TypeRequestChatMessage = "request_chat_message"
-	TypeReplyChatMessage   = "reply_chat_message"
-	TypeRequestBeginGame   = "request_begin_game"
-	TypeReplyBeginGame     = "reply_begin_game"
-	TypeRequestMotd        = "request_motd"
-	TypeReplyMotd          = "reply_motd"
-	TypeRequestVersion     = "request_version"
-	TypeReplyVersion       = "reply_version"
+	TypeRequestPlayers      = "request_players"
+	TypeReplyPlayers        = "reply_players"
+	TypeRequestGetRooms     = "request_get_rooms"
+	TypeReplyGetRooms       = "reply_get_rooms"
+	TypeRequestCreateRoom   = "request_create_room"
+	TypeReplyCreateRoom     = "reply_create_room"
+	TypeRequestJoinRoom     = "request_join_room"
+	TypeReplyJoinRoom       = "reply_join_room"
+	TypeRequestChatMessage  = "request_chat_message"
+	TypeReplyChatMessage    = "reply_chat_message"
+	TypeRequestBeginGame    = "request_begin_game"
+	TypeReplyBeginGame      = "reply_begin_game"
+	TypeRequestMotd         = "request_motd"
+	TypeReplyMotd           = "reply_motd"
+	TypeRequestVersion      = "request_version"
+	TypeReplyVersion        = "reply_version"
 )
 
 type LobbyServer struct {
@@ -90,30 +90,30 @@ type SocketMessage struct {
 const NetplayAPIVersion = "MPN-1"
 
 func (sm *SocketMessage) UnmarshalJSON(data []byte) error {
-    var raw map[string]interface{}
-    if err := json.Unmarshal(data, &raw); err != nil {
-        return err
-    }
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
 
-    if features, ok := raw["features"].(map[string]interface{}); ok {
-        sm.Features = make(map[string]string)
-        for k, v := range features {
-            sm.Features[k] = fmt.Sprintf("%v", v)
-        }
-    }
+	if features, ok := raw["features"].(map[string]interface{}); ok {
+		sm.Features = make(map[string]string)
+		for k, v := range features {
+			sm.Features[k] = fmt.Sprintf("%v", v)
+		}
+	}
 
-    // Unmarshal other fields
-    type Alias SocketMessage
-    aux := &struct {
-        *Alias
-    }{
-        Alias: (*Alias)(sm),
-    }
-    if err := json.Unmarshal(data, &aux); err != nil {
-        return err
-    }
+	// Unmarshal other fields
+	type Alias SocketMessage
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(sm),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
 
-    return nil
+	return nil
 }
 
 func (s *LobbyServer) sendData(ws *websocket.Conn, message SocketMessage) error {
@@ -253,34 +253,34 @@ func (s *LobbyServer) wsHandler(ws *websocket.Conn) {
 	defer ws.Close()
 
 	for {
-        var rawMessage map[string]interface{}
-        err := websocket.JSON.Receive(ws, &rawMessage)
-        if err != nil {
-            if errors.Is(err, io.EOF) {
-                // Handle EOF
-                return
-            }
-            s.Logger.Info("could not read WS message", "reason", err.Error(), "address", ws.Request().RemoteAddr)
-            continue
-        }
+		var rawMessage map[string]interface{}
+		err := websocket.JSON.Receive(ws, &rawMessage)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				// Handle EOF
+				return
+			}
+			s.Logger.Info("could not read WS message", "reason", err.Error(), "address", ws.Request().RemoteAddr)
+			continue
+		}
 
-        // Marshal the map back to JSON
-        jsonData, err := json.Marshal(rawMessage)
-        if err != nil {
-            s.Logger.Error(err, "could not marshal raw message")
-            continue
-        }
+		// Marshal the map back to JSON
+		jsonData, err := json.Marshal(rawMessage)
+		if err != nil {
+			s.Logger.Error(err, "could not marshal raw message")
+			continue
+		}
 
-        // Unmarshal the JSON into the SocketMessage struct using the custom unmarshal method
-        var receivedMessage SocketMessage
-        err = json.Unmarshal(jsonData, &receivedMessage)
-        if err != nil {
-            s.Logger.Error(err, "could not unmarshal into SocketMessage")
-            continue
-        }
+		// Unmarshal the JSON into the SocketMessage struct using the custom unmarshal method
+		var receivedMessage SocketMessage
+		err = json.Unmarshal(jsonData, &receivedMessage)
+		if err != nil {
+			s.Logger.Error(err, "could not unmarshal into SocketMessage")
+			continue
+		}
 
-        // Process the receivedMessage as usual
-        var sendMessage SocketMessage
+		// Process the receivedMessage as usual
+		var sendMessage SocketMessage
 
 		switch receivedMessage.Type {
 		case TypeRequestCreateRoom:
@@ -308,7 +308,7 @@ func (s *LobbyServer) wsHandler(ws *websocket.Conn) {
 			} else {
 				authenticated = true
 				g := gameserver.GameServer{}
-				sendMessage.Port = g.CreateNetworkServers(s.BasePort, s.MaxGames, receivedMessage.RoomName, receivedMessage.GameName, s.Logger)
+				sendMessage.Port = g.CreateNetworkServers(s.BasePort, s.MaxGames, receivedMessage.RoomName, receivedMessage.GameName, receivedMessage.PlayerName, s.Logger)
 				if sendMessage.Port == 0 {
 					sendMessage.Accept = Other
 					sendMessage.Message = "Failed to create room"
@@ -321,6 +321,7 @@ func (s *LobbyServer) wsHandler(ws *websocket.Conn) {
 					g.Emulator = receivedMessage.Emulator
 					g.Players = make(map[string]gameserver.Client)
 					g.Features = receivedMessage.Features
+					g.PlayerName = receivedMessage.PlayerName
 					ip, _, err := net.SplitHostPort(ws.Request().RemoteAddr)
 					if err != nil {
 						s.Logger.Error(err, "could not parse IP", "IP", ws.Request().RemoteAddr)
@@ -372,6 +373,7 @@ func (s *LobbyServer) wsHandler(ws *websocket.Conn) {
 					sendMessage.Port = v.Port
 					sendMessage.GameName = v.GameName
 					sendMessage.Features = v.Features
+					sendMessage.PlayerName = v.PlayerName
 					if err := s.sendData(ws, sendMessage); err != nil {
 						s.Logger.Error(err, "failed to send message", "message", sendMessage, "address", ws.Request().RemoteAddr)
 					}
@@ -398,7 +400,7 @@ func (s *LobbyServer) wsHandler(ws *websocket.Conn) {
 				}
 				g.ChangeBuffer(bufferInt)
 				s.Logger.Info("buffer changed", "room", roomName, "buffer", bufferInt)
-		
+
 				// Broadcast buffer change to all players
 				sendMessage.Type = TypeReplyChangeBuffer
 				sendMessage.Message = "Buffer changed successfully"
