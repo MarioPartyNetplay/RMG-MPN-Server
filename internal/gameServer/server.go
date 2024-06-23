@@ -76,6 +76,8 @@ func (g *GameServer) CloseServers() {
 	} else if err == nil {
 		g.Logger.Info("TCP server closed")
 	}
+
+	g.Running = false // Set Running flag to false when closing servers
 }
 
 func (g *GameServer) isConnClosed(err error) bool {
