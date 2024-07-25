@@ -10,6 +10,8 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+const DisconnectTimeoutS = 60
+
 type Client struct {
 	Socket *websocket.Conn
 	IP     string
@@ -20,6 +22,11 @@ type Registration struct {
 	RegID  uint32
 	Plugin byte
 	Raw    byte
+}
+
+type GameData struct {
+	PlayerAlive [4]bool
+	BufferSize  [4]uint32
 }
 
 type GameServer struct {
@@ -47,6 +54,7 @@ type GameServer struct {
 	Features           map[string]string
 	PlayerName         string
 	Buffer             int
+	LastActivity       time.Time
 }
 
 func (g *GameServer) CreateNetworkServers(basePort int, maxGames int, roomName string, gameName string, playerName string, logger logr.Logger) int {
@@ -62,6 +70,8 @@ func (g *GameServer) CreateNetworkServers(basePort int, maxGames int, roomName s
 		}
 		return 0
 	}
+	g.LastActivity = time.Now()
+	go g.MonitorActivity() // Start monitoring activity
 	return port
 }
 
@@ -117,6 +127,7 @@ func (g *GameServer) ManagePlayers() {
 			g.Running = false
 			return
 		}
+		g.LastActivity = time.Now() // Reset activity timer
 		time.Sleep(time.Second * DisconnectTimeoutS)
 	}
 }
@@ -126,5 +137,16 @@ func (g *GameServer) ChangeBuffer(buffer int) {
 	weightedBuffer := uint32(buffer)
 	for i := range g.GameData.BufferSize {
 		g.GameData.BufferSize[i] = weightedBuffer
+	}
+}
+
+func (g *GameServer) MonitorActivity() {
+	for g.Running {
+		if time.Since(g.LastActivity) > time.Second*DisconnectTimeoutS {
+			g.Logger.Info("No activity detected for 60 seconds, closing server.")
+			g.CloseServers()
+			return
+		}
+		time.Sleep(time.Second)
 	}
 }
