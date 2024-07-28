@@ -46,6 +46,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	fmt.Println("successfully finished startup")
+
 	if *motd == "" {
 		*motd = DefaultMOTDMessage
 	}
