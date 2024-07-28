@@ -46,6 +46,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	fmt.Println("Server startup completed successfully")
+
 	if *motd == "" {
 		*motd = DefaultMOTDMessage
 	}
