@@ -261,8 +261,15 @@ func (s *LobbyServer) wsHandler(ws *websocket.Conn) {
 				return
 			}
 			s.Logger.Info("could not read WS message", "reason", err.Error(), "address", ws.Request().RemoteAddr)
+			if strings.Contains(err.Error(), "wsarecv: An existing connection was forcibly closed by the remote host") {
+				s.handlePlayerDrop(ws)
+				return
+			}
 			continue
 		}
+
+		// Update last activity timestamp
+		s.updateLastActivity(ws)
 
 		// Marshal the map back to JSON
 		jsonData, err := json.Marshal(rawMessage)
@@ -639,6 +646,8 @@ func (s *LobbyServer) RunSocketServer(broadcastPort int) error {
 		go s.runBroadcastServer(broadcastPort)
 	}
 
+	go s.purgeInactiveRooms() // Start the periodic purge
+
 	server := websocket.Server{
 		Handler:   s.wsHandler,
 		Handshake: nil,
@@ -674,4 +683,44 @@ func getVersion() string {
 		}
 	}
 	return version
+}
+
+func (s *LobbyServer) updateLastActivity(ws *websocket.Conn) {
+	for _, g := range s.GameServers {
+		for _, player := range g.Players {
+			if player.Socket == ws {
+				g.LastActivity = time.Now()
+				return
+			}
+		}
+	}
+}
+
+func (s *LobbyServer) handlePlayerDrop(ws *websocket.Conn) {
+	for roomName, g := range s.GameServers {
+		for playerName, player := range g.Players {
+			if player.Socket == ws {
+				delete(g.Players, playerName)
+				s.Logger.Info("Player dropped", "player", playerName, "room", roomName)
+				if len(g.Players) == 0 {
+					delete(s.GameServers, roomName)
+					s.Logger.Info("Room deleted due to no active players", "room", roomName)
+				}
+				return
+			}
+		}
+	}
+}
+
+func (s *LobbyServer) purgeInactiveRooms() {
+	for {
+		time.Sleep(5 * time.Minute) // Check every 5 minutes
+		now := time.Now()
+		for roomName, g := range s.GameServers {
+			if now.Sub(g.LastActivity) > 10*time.Minute { // Inactive for more than 10 minutes
+				delete(s.GameServers, roomName)
+				s.Logger.Info("Room purged due to inactivity", "room", roomName)
+			}
+		}
+	}
 }
