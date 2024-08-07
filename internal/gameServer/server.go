@@ -84,16 +84,18 @@ func (g *GameServer) ManagePlayers() {
 		playersActive := false // used to check if anyone is still around
 		var i byte
 
-		g.GameDataMutex.Lock()
+		g.GameDataMutex.Lock() // PlayerAlive and Status can be modified by processUDP in a different thread
 		for i = 0; i < 4; i++ {
 			_, ok := g.Registrations[i]
 			if ok {
 				if g.GameData.PlayerAlive[i] {
-					// Player is active
+					g.Logger.Info("player status", "player", i, "regID", g.Registrations[i].RegID, "bufferSize", g.GameData.BufferSize[i], "bufferHealth", g.GameData.BufferHealth[i], "countLag", g.GameData.CountLag[i], "address", g.GameData.PlayerAddresses[i])
 					playersActive = true
 				} else {
-					// Player disconnected
-					g.RegistrationsMutex.Lock()
+					g.Logger.Info("play disconnected UDP", "player", i, "regID", g.Registrations[i].RegID, "address", g.GameData.PlayerAddresses[i])
+					g.GameData.Status |= (0x1 << (i + 1)) //nolint:gomnd,mnd
+
+					g.RegistrationsMutex.Lock() // Registrations can be modified by processTCP
 					delete(g.Registrations, i)
 					g.RegistrationsMutex.Unlock()
 				}
@@ -103,12 +105,12 @@ func (g *GameServer) ManagePlayers() {
 		g.GameDataMutex.Unlock()
 
 		if !playersActive {
-			// No active players, close room
+			g.Logger.Info("no more players, closing room", "numPlayers", len(g.Players), "playTime", time.Since(g.StartTime).String(), "emulator", g.Emulator)
 			g.CloseServers()
 			g.Running = false
 			return
 		}
-		g.LastActivity = time.Now() // Reset activity timern
+		time.Sleep(time.Second * DisconnectTimeoutS)
 	}
 }
 
