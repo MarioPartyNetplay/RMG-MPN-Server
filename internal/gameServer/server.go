@@ -36,6 +36,7 @@ type GameServer struct {
 	Buffer             int
 	LastActivity       time.Time
 	LastPacketReceived time.Time
+	CreationTime       time.Time
 }
 
 func (g *GameServer) CreateNetworkServers(basePort int, maxGames int, roomName string, gameName string, playerName string, logger logr.Logger) int {
@@ -58,15 +59,21 @@ func (g *GameServer) CreateNetworkServers(basePort int, maxGames int, roomName s
 }
 
 func (g *GameServer) CloseServers() {
-	if err := g.UDPListener.Close(); err != nil && !g.isConnClosed(err) {
-		g.Logger.Error(err, "error closing UdpListener")
-	} else if err == nil {
-		g.Logger.Info("UDP server closed")
+	if g.UDPListener != nil {
+		if err := g.UDPListener.Close(); err != nil && !g.isConnClosed(err) {
+			g.Logger.Error(err, "error closing UdpListener")
+		} else if err == nil {
+			g.Logger.Info("UDP server closed")
+		}
+		g.UDPListener = nil // Ensure the UDPListener is set to nil after closing
 	}
-	if err := g.TCPListener.Close(); err != nil && !g.isConnClosed(err) {
-		g.Logger.Error(err, "error closing TcpListener")
-	} else if err == nil {
-		g.Logger.Info("TCP server closed")
+	if g.TCPListener != nil {
+		if err := g.TCPListener.Close(); err != nil && !g.isConnClosed(err) {
+			g.Logger.Error(err, "error closing TcpListener")
+		} else if err == nil {
+			g.Logger.Info("TCP server closed")
+		}
+		g.TCPListener = nil // Ensure the TCPListener is set to nil after closing
 	}
 	g.Running = false // Set Running flag to false when closing servers
 }
@@ -134,7 +141,16 @@ func (g *GameServer) MonitorActivity() {
 			g.CloseServers()
 			return
 		}
-		time.Sleep(time.Second)
+		g.PlayersMutex.Lock()
+		noPlayers := len(g.Players) == 0
+		g.PlayersMutex.Unlock()
+		if noPlayers {
+			g.Logger.Info("No players online, restarting server.")
+			g.CloseServers()
+			time.Sleep(time.Second * 10) // Wait for 10 seconds before restarting
+			g.CreateNetworkServers(g.Port, 1, g.GameName, g.GameName, g.PlayerName, g.Logger)
+		}
+		time.Sleep(time.Minute * 2) // Check every 10 minutes
 	}
 }
 
