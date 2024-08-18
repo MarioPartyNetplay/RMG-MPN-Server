@@ -131,11 +131,46 @@ func (g *GameServer) tcpSendReg(conn *net.TCPConn) {
 	}
 }
 
+func (g *GameServer) disconnectPlayer(conn *net.TCPConn) {
+	remoteAddr := conn.RemoteAddr().String()
+	g.Logger.Info("Disconnecting player", "address", remoteAddr)
+
+	// Find the player by their connection address
+	var playerKey string
+	var found bool
+	for key, player := range g.Players {
+		if player.IP == remoteAddr {
+			playerKey = key
+			found = true
+			break
+		}
+	}
+
+	if found {
+		g.GameDataMutex.Lock()
+		playerNumber := g.Players[playerKey].Number
+		g.GameData.PlayerAlive[playerNumber] = false
+		g.GameData.Status |= (0x1 << (playerNumber + 1))
+		g.GameDataMutex.Unlock()
+
+		g.RegistrationsMutex.Lock()
+		delete(g.Registrations, byte(playerNumber))
+		g.RegistrationsMutex.Unlock()
+
+		g.Logger.Info("Player disconnected", "playerNumber", playerNumber, "address", remoteAddr)
+	} else {
+		g.Logger.Info("Player not found for disconnection", "address", remoteAddr)
+	}
+
+	conn.Close()
+}
+
 func (g *GameServer) processTCP(conn *net.TCPConn) {
 	defer conn.Close()
 
 	tcpData := &TCPData{Request: RequestNone}
 	incomingBuffer := make([]byte, 1500) //nolint:gomnd
+	lastReadTime := time.Now()
 	for {
 		err := conn.SetReadDeadline(time.Now().Add(time.Second))
 		if err != nil {
@@ -148,8 +183,14 @@ func (g *GameServer) processTCP(conn *net.TCPConn) {
 		}
 		if err != nil && !errors.Is(err, os.ErrDeadlineExceeded) {
 			g.Logger.Info("could not read TCP message", "reason", err.Error(), "address", conn.RemoteAddr().String())
+			if time.Since(lastReadTime) > 10*time.Second {
+				g.Logger.Info("Assuming disconnection due to prolonged read failure", "address", conn.RemoteAddr().String())
+				g.disconnectPlayer(conn)
+				return
+			}
 			continue
 		}
+
 		if length > 0 {
 			tcpData.Buffer.Write(incomingBuffer[:length])
 		}

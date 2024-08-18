@@ -37,6 +37,11 @@ type GameServer struct {
 	LastActivity       time.Time
 	LastPacketReceived time.Time
 	CreationTime       time.Time
+	LobbyServer        LobbyServerInterface
+}
+
+type LobbyServerInterface interface {
+	CloseAllServers()
 }
 
 func (g *GameServer) CreateNetworkServers(basePort int, maxGames int, roomName string, gameName string, playerName string, logger logr.Logger) int {
@@ -53,8 +58,8 @@ func (g *GameServer) CreateNetworkServers(basePort int, maxGames int, roomName s
 		return 0
 	}
 	g.LastActivity = time.Now()
-	g.LastPacketReceived = time.Now() // Initialize LastPacketReceived
-	go g.MonitorActivity()            // Start monitoring activity
+	g.LastPacketReceived = time.Now()
+	go g.MonitorActivity()
 	return port
 }
 
@@ -146,11 +151,11 @@ func (g *GameServer) MonitorActivity() {
 		g.PlayersMutex.Unlock()
 		if noPlayers {
 			g.Logger.Info("No players online, restarting server.")
-			g.CloseServers()
-			time.Sleep(time.Second * 10) // Wait for 10 seconds before restarting
+			g.LobbyServer.CloseAllServers()
+			time.Sleep(time.Second * 10)
 			g.CreateNetworkServers(g.Port, 1, g.GameName, g.GameName, g.PlayerName, g.Logger)
 		}
-		time.Sleep(time.Minute * 2) // Check every 10 minutes
+		time.Sleep(time.Minute * 2)
 	}
 }
 
