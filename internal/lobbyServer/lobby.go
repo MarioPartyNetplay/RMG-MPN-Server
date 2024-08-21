@@ -87,7 +87,7 @@ type SocketMessage struct {
 	Port           int               `json:"port"`
 }
 
-const NetplayAPIVersion = "MPN-2"
+const NetplayAPIVersion = "MPN-3"
 
 func (sm *SocketMessage) UnmarshalJSON(data []byte) error {
 	var raw map[string]interface{}
