@@ -718,17 +718,9 @@ func (s *LobbyServer) purgeInactiveRooms() {
 		now := time.Now()
 		for roomName, g := range s.GameServers {
 			if now.Sub(g.LastActivity) > 10*time.Minute { // Inactive for more than 10 minutes
-				g.CloseServers() // Close the servers to free up the ports
 				delete(s.GameServers, roomName)
 				s.Logger.Info("Room purged due to inactivity", "room", roomName)
 			}
 		}
-	}
-}
-
-func (ls *LobbyServer) CloseAllServers() {
-	for roomName, g := range ls.GameServers {
-		g.CloseServers()
-		ls.Logger.Info("Closed game server", "room", roomName, "port", g.Port)
 	}
 }
