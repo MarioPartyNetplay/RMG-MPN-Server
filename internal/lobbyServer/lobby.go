@@ -704,6 +704,9 @@ func (s *LobbyServer) handlePlayerDrop(ws *websocket.Conn) {
 				delete(g.Players, playerName)
 				s.Logger.Info("Player dropped", "player", playerName, "room", roomName)
 				if len(g.Players) == 0 {
+					// Remove the port from the active ports list
+					s.removePort(g.Port)
+
 					delete(s.GameServers, roomName)
 					s.Logger.Info("Room deleted due to no active players", "room", roomName)
 				}
