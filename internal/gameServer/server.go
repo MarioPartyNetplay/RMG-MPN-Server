@@ -34,6 +34,7 @@ type GameServer struct {
 	Features           map[string]string
 	PlayerName         string
 	Buffer             int
+	ActivePorts        []int
 	LastActivity       time.Time
 	LastPacketReceived time.Time
 	CreationTime       time.Time

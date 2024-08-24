@@ -65,6 +65,7 @@ type LobbyServer struct {
 	MaxGames         int
 	DisableBroadcast bool
 	EnableAuth       bool
+	ActivePorts      []int
 }
 
 type SocketMessage struct {
@@ -712,15 +713,33 @@ func (s *LobbyServer) handlePlayerDrop(ws *websocket.Conn) {
 	}
 }
 
+// Function to purge inactive rooms
 func (s *LobbyServer) purgeInactiveRooms() {
 	for {
 		time.Sleep(5 * time.Minute) // Check every 5 minutes
 		now := time.Now()
 		for roomName, g := range s.GameServers {
 			if now.Sub(g.LastActivity) > 10*time.Minute { // Inactive for more than 10 minutes
+				// Clear the ports before deleting the game server
+				g.TCPListener = nil // Clear TCP listener
+				g.UDPListener = nil // Clear UDP listener
+
+				// Remove the port from the active ports list
+				s.removePort(g.Port)
+
 				delete(s.GameServers, roomName)
 				s.Logger.Info("Room purged due to inactivity", "room", roomName)
 			}
+		}
+	}
+}
+
+// Function to remove a port from the active ports list
+func (s *LobbyServer) removePort(port int) {
+	for i, p := range s.ActivePorts {
+		if p == port {
+			s.ActivePorts = append(s.ActivePorts[:i], s.ActivePorts[i+1:]...) // Remove the port
+			break
 		}
 	}
 }
