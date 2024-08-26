@@ -36,7 +36,7 @@ func (g *GameServer) fillInput(playerNumber byte, count uint32) {
 }
 
 func (g *GameServer) sendUDPInput(count uint32, addr *net.UDPAddr, playerNumber byte, spectator bool, sendingPlayerNumber byte) uint32 {
-	buffer := make([]byte, 10240) //nolint:gomnd
+	buffer := make([]byte, 40960) //nolint:gomnd
 	var countLag uint32
 	if uintLarger(count, g.GameData.LeadCount) {
 		if !spectator {
