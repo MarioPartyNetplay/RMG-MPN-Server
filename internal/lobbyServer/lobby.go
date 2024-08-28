@@ -647,8 +647,6 @@ func (s *LobbyServer) RunSocketServer(broadcastPort int) error {
 		go s.runBroadcastServer(broadcastPort)
 	}
 
-	go s.purgeInactiveRooms() // Start the periodic purge
-
 	server := websocket.Server{
 		Handler:   s.wsHandler,
 		Handshake: nil,
