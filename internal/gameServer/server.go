@@ -126,7 +126,7 @@ func (g *GameServer) ChangeBuffer(buffer int) {
 	weightedBuffer := uint32(buffer)
 	for i := range g.GameData.BufferSize {
 		g.GameData.BufferSize[i] = weightedBuffer
-		g.GameData.BufferHealth[i] = int32(weightedBuffer) + 2
+		g.GameData.BufferHealth[i] = int32(weightedBuffer) + 5
 	}
 }
 
