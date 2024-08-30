@@ -115,7 +115,7 @@ func (g *GameServer) processUDP(addr *net.UDPAddr, buf []byte) {
 		countLag := g.sendUDPInput(count, addr, playerNumber, spectator != 0, sendingPlayerNumber)
 
 		// Read BufferHealth from BufferSize first
-		g.GameData.BufferHealth[sendingPlayerNumber] = 0 + int32(g.GameData.BufferSize[sendingPlayerNumber])
+		g.GameData.BufferHealth[sendingPlayerNumber] = int32(g.GameData.BufferSize[sendingPlayerNumber]) + int32(g.GameData.BufferSize[sendingPlayerNumber])
 
 		g.GameDataMutex.Lock() // PlayerAlive can be modified by ManagePlayers in a different thread
 		g.GameData.PlayerAlive[sendingPlayerNumber] = true
