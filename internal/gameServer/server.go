@@ -76,6 +76,9 @@ func (g *GameServer) CloseServers() {
 		g.TCPListener = nil // Ensure the TCPListener is set to nil after closing
 	}
 	g.Running = false // Set Running flag to false when closing servers
+
+	// Optionally, you can reset the port to allow reuse
+	g.Port = 0 // Reset the port to indicate it's available for reuse
 }
 
 func (g *GameServer) isConnClosed(err error) bool {
