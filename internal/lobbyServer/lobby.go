@@ -579,6 +579,16 @@ func (s *LobbyServer) wsHandler(ws *websocket.Conn) {
 	}
 }
 
+func (s *LobbyServer) DestroyLobby(gameName string) {
+	// Logic to destroy the lobby associated with the gameName
+	if _, exists := s.GameServers[gameName]; exists {
+		delete(s.GameServers, gameName)
+		s.Logger.Info("Lobby destroyed", "game", gameName)
+	} else {
+		s.Logger.Info("Lobby not found for destruction", "game", gameName)
+	}
+}
+
 // this function figures out what is our outgoing IP address.
 func (s *LobbyServer) getOutboundIP(dest *net.UDPAddr) (net.IP, error) {
 	conn, err := net.DialUDP("udp", nil, dest)

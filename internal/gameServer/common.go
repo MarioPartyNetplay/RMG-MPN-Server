@@ -59,3 +59,7 @@ const (
 func uintLarger(v uint32, w uint32) bool {
     return (w - v) > (math.MaxUint32 / 2) //nolint:gomnd
 }
+
+type Lobby interface {
+	DestroyLobby(gameName string)
+}
