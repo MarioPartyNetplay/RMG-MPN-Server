@@ -254,8 +254,8 @@ func (s *LobbyServer) wsHandler(ws *websocket.Conn) {
 	defer ws.Close()
 
 	for {
-		var receivedMessage SocketMessage
-		err := websocket.JSON.Receive(ws, &receivedMessage)
+		var rawMessage SocketMessage
+		err := websocket.JSON.Receive(ws, &rawMessage)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				if errors.Is(err, io.EOF) {
