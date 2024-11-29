@@ -254,32 +254,34 @@ func (s *LobbyServer) wsHandler(ws *websocket.Conn) {
 	defer ws.Close()
 
 	for {
-		var rawMessage map[string]interface{}
-		err := websocket.JSON.Receive(ws, &rawMessage)
+		var receivedMessage SocketMessage
+		err := websocket.JSON.Receive(ws, &receivedMessage)
 		if err != nil {
 			if errors.Is(err, io.EOF) {
-				for i, v := range s.GameServers {
-					if !v.Running {
-						for k, w := range v.Players {
-							if w.Socket == ws {
-								s.Logger.Info("Player has left lobby", "player", k, "room", i, "address", ws.Request().RemoteAddr)
+				if errors.Is(err, io.EOF) {
+					for i, v := range s.GameServers {
+						if !v.Running {
+							for k, w := range v.Players {
+								if w.Socket == ws {
+									s.Logger.Info("Player has left lobby", "player", k, "room", i, "address", ws.Request().RemoteAddr)
 	
-								v.PlayersMutex.Lock() // any player can modify this, which would be in a different thread
-								delete(v.Players, k)
-								v.PlayersMutex.Unlock()
+									v.PlayersMutex.Lock() // any player can modify this, which would be in a different thread
+									delete(v.Players, k)
+									v.PlayersMutex.Unlock()
 	
-								s.updatePlayers(v)
+									s.updatePlayers(v)
+								}
+							}
+							if len(v.Players) == 0 {
+								s.Logger.Info("No more players in lobby, deleting", "room", i)
+								v.CloseServers()
+								delete(s.GameServers, i)
 							}
 						}
-						if len(v.Players) == 0 {
-							s.Logger.Info("No more players in lobby, deleting", "room", i)
-							v.CloseServers()
-							delete(s.GameServers, i)
-						}
 					}
+					// s.Logger.Info("closed WS connection", "address", ws.Request().RemoteAddr)
+					return
 				}
-				// s.Logger.Info("closed WS connection", "address", ws.Request().RemoteAddr)
-				return
 			}
 			s.Logger.Info("could not read WS message", "reason", err.Error(), "address", ws.Request().RemoteAddr)
 			if strings.Contains(err.Error(), "wsarecv: An existing connection was forcibly closed by the remote host") {

@@ -37,7 +37,8 @@ type GameServer struct {
 	LastActivity       time.Time
 	LastPacketReceived time.Time
 	CreationTime       time.Time
-}
+	Lobby 			   Lobby
+ }
 
 func (g *GameServer) CreateNetworkServers(basePort int, maxGames int, roomName string, gameName string, playerName string, logger logr.Logger) int {
 	g.Logger = logger.WithValues("game", gameName, "room", roomName, "player", playerName)
@@ -76,6 +77,10 @@ func (g *GameServer) CloseServers() {
 		g.TCPListener = nil // Ensure the TCPListener is set to nil after closing
 	}
 	g.Running = false // Set Running flag to false when closing servers
+
+	if g.Lobby != nil {
+		g.Lobby.DestroyLobby(g.GameName) // Call the method to destroy the lobby
+	}
 }
 
 func (g *GameServer) isConnClosed(err error) bool {
