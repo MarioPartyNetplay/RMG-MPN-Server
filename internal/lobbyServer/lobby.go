@@ -428,6 +428,18 @@ func (s *LobbyServer) wsHandler(ws *websocket.Conn) {
 					}
 					continue
 				}
+				
+				// New check for buffer value range
+				if bufferInt < 0 || bufferInt > 100 { // Assuming 0-100 is the valid range
+					s.Logger.Error(fmt.Errorf("invalid buffer range"), "buffer value out of range", "value", bufferInt)
+					sendMessage.Type = TypeReplyChangeBuffer
+					sendMessage.Message = "Buffer value must be between 0 and 100"
+					if err := s.sendData(ws, sendMessage); err != nil {
+						s.Logger.Error(err, "failed to send message", "message", sendMessage, "address", ws.Request().RemoteAddr)
+					}
+					continue
+				}
+
 				g.ChangeBuffer(bufferInt)
 				s.Logger.Info("buffer changed", "room", roomName, "buffer", bufferInt)
 
