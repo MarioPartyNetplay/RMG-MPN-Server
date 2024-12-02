@@ -116,7 +116,7 @@ func (g *GameServer) processUDP(addr *net.UDPAddr, buf []byte) {
 
 		// Read BufferHealth from BufferSize first
 		g.GameData.BufferHealth[sendingPlayerNumber] = int32(buf[11])
-		
+
 		g.GameDataMutex.Lock() // PlayerAlive can be modified by ManagePlayers in a different thread
 		g.GameData.PlayerAlive[sendingPlayerNumber] = true
 		g.GameDataMutex.Unlock()
@@ -184,7 +184,7 @@ func (g *GameServer) createUDPServer() error {
 
 	g.GameData.PlayerAddresses = make([]*net.UDPAddr, 4) //nolint:gomnd
 	g.GameData.BufferSize = []uint32{3, 3, 3, 3}
-	g.GameData.BufferHealth = []int32{5, 5, 5, 5}
+	g.GameData.BufferHealth = []int32{-1, -1, -1, -1}
 	g.GameData.Inputs = make([]map[uint32]uint32, 4) //nolint:gomnd
 	for i := 0; i < 4; i++ {
 		g.GameData.Inputs[i] = make(map[uint32]uint32)
