@@ -36,8 +36,6 @@ const (
 )
 
 const (
-	TypeRequestChangeBuffer = "request_change_buffer"
-	TypeReplyChangeBuffer   = "reply_change_buffer"
 	TypeRequestPlayers      = "request_players"
 	TypeReplyPlayers        = "reply_players"
 	TypeRequestGetRooms     = "request_get_rooms"
@@ -204,6 +202,7 @@ func (s *LobbyServer) announceDiscord(g *gameserver.GameServer) {
 }
 
 func (s *LobbyServer) watchGameServer(name string, g *gameserver.GameServer) {
+	go g.ManageBuffer()
 	go g.ManagePlayers()
 	for {
 		if !g.Running {
@@ -409,53 +408,6 @@ func (s *LobbyServer) wsHandler(ws *websocket.Conn) {
 					}
 				}
 			}
-
-		case TypeRequestChangeBuffer:
-			if !authenticated {
-				s.Logger.Error(fmt.Errorf("bad auth"), "User tried to change buffer without being authenticated", "address", ws.Request().RemoteAddr)
-				continue
-			}
-			roomName, g := s.findGameServer(receivedMessage.Port)
-			if g != nil {
-				bufferValue := receivedMessage.Features["buffer"]
-				bufferInt, err := strconv.Atoi(bufferValue)
-				if err != nil {
-					s.Logger.Error(err, "invalid buffer value", "value", bufferValue)
-					sendMessage.Type = TypeReplyChangeBuffer
-					sendMessage.Message = "Invalid buffer value"
-					if err := s.sendData(ws, sendMessage); err != nil {
-						s.Logger.Error(err, "failed to send message", "message", sendMessage, "address", ws.Request().RemoteAddr)
-					}
-					continue
-				}
-				
-				// New check for buffer value range
-				if bufferInt < 0 || bufferInt > 100 { // Assuming 0-100 is the valid range
-					s.Logger.Error(fmt.Errorf("invalid buffer range"), "buffer value out of range", "value", bufferInt)
-					sendMessage.Type = TypeReplyChangeBuffer
-					sendMessage.Message = "Buffer value must be between 0 and 100"
-					if err := s.sendData(ws, sendMessage); err != nil {
-						s.Logger.Error(err, "failed to send message", "message", sendMessage, "address", ws.Request().RemoteAddr)
-					}
-					continue
-				}
-
-				g.ChangeBuffer(bufferInt)
-				s.Logger.Info("buffer changed", "room", roomName, "buffer", bufferInt)
-
-				// Broadcast buffer change to all players
-				sendMessage.Type = TypeReplyChangeBuffer
-				sendMessage.Message = "Buffer changed successfully"
-				sendMessage.Features = map[string]string{"buffer": strconv.Itoa(bufferInt)}
-				for _, player := range g.Players {
-					if err := s.sendData(player.Socket, sendMessage); err != nil {
-						s.Logger.Error(err, "failed to send message", "message", sendMessage, "address", player.Socket.Request().RemoteAddr)
-					}
-				}
-			} else {
-				s.Logger.Error(fmt.Errorf("could not find game server"), "server not found", "message", receivedMessage, "address", ws.Request().RemoteAddr)
-			}
-
 		case TypeRequestJoinRoom:
 			if !authenticated {
 				s.Logger.Error(fmt.Errorf("bad auth"), "User tried to join room without being authenticated", "address", ws.Request().RemoteAddr)
